@@ -2,6 +2,10 @@
 
 Get stats on usage of your development platform tooling.
 
+## Usage
+
+For the time being, follow [#Development](#Development) to set up the tool and `alias platformstats="python main.py"`.
+
 ## Development
 
 1. Install [Python 3.12](https://www.python.org/downloads/).

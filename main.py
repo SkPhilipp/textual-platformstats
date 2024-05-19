@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 
-from tools.artifactory.parser import Aggregator
+from tools.artifactory.aggregator import Aggregator
 from tools.artifactory.unpack import unpack
 
 
@@ -21,7 +21,7 @@ def main():
         print('Loading log files...')
         for log_file in router_request_log_files:
             aggregator.parse_router_request_log(log_file)
-        aggregator.summarize_router_request_data()
+        aggregator.summarize()
         return
 
     print(f'Unknown application: {args.application}')

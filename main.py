@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import argparse
 
-from tools.artifactory.aggregator import Aggregator
+from tools.artifactory.aggregator import ArtifactoryAggregator
 from tools.artifactory.unpack import unpack
+from tools.common.logs import log
 
 
 def main():
@@ -14,17 +15,13 @@ def main():
 
     if args.application == 'artifactory':
         log_files = unpack(args.zipfile)
-        print(f'Found {len(log_files)} log files.')
-        router_request_log_files = [file for file in log_files if 'router-request.log' in file]
-        print(f'Found {len(router_request_log_files)} "router-request.log" files.')
-        aggregator = Aggregator()
-        print('Loading log files...')
-        for log_file in router_request_log_files:
+        aggregator = ArtifactoryAggregator()
+        for log_file in log_files:
             aggregator.parse_router_request_log(log_file)
         aggregator.summarize()
         return
 
-    print(f'Unknown application: {args.application}')
+    log.error(f'Unknown application: {args.application}')
 
 
 if __name__ == "__main__":

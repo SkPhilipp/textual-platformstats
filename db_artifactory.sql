@@ -38,3 +38,4 @@ CREATE INDEX IF NOT EXISTS idx_request_User_Agent ON data_artifactory (request_U
 CREATE INDEX IF NOT EXISTS idx_time ON data_artifactory (time);
 
 CREATE INDEX IF NOT EXISTS idx_ClientAddr__time ON data_artifactory (ClientAddr, time);
+CREATE INDEX IF NOT EXISTS idx_tag__time ON data_artifactory (_tag, time);

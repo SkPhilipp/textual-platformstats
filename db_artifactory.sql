@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS data_artifactory
 (
     _id                   INTEGER PRIMARY KEY,
-    _tag                  TEXT,
+    _tag                  TEXT DEFAULT 'default',
 
     ClientAddr            TEXT,
     ClientAddr_ClientIp   TEXT,

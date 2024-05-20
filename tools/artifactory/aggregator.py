@@ -173,13 +173,11 @@ class ArtifactoryAggregator(BaseAggregator):
             FROM data_artifactory
         ''', (interval, interval))
         all_time_periods = [row[0] for row in self.cursor.fetchall()]
-
         self.cursor.execute('''
             SELECT DISTINCT _tag
             FROM data_artifactory
         ''')
         all_tags = [row[0] for row in self.cursor.fetchall()]
-
         self.cursor.execute(f'''
             SELECT strftime('%s', time) / ? * ?, _tag, COUNT(*)
             FROM data_artifactory
@@ -194,5 +192,4 @@ class ArtifactoryAggregator(BaseAggregator):
                 count = data_dict.get((time_period, ip), 0)
                 tag_data[ip][0].append(time_period)
                 tag_data[ip][1].append(count)
-
         return tag_data

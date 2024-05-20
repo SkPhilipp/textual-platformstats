@@ -120,6 +120,21 @@ class ArtifactoryAggregator(BaseAggregator):
         return rows, total
 
     def timeline_ip(self, time_modulus: int) -> dict:
+        # Get all unique time periods
+        self.cursor.execute(f'''
+            SELECT DISTINCT strftime('%s', time) / ? * ?
+            FROM data_artifactory
+        ''', (time_modulus, time_modulus))
+        all_time_periods = [row[0] for row in self.cursor.fetchall()]
+
+        # Get all unique IPs
+        self.cursor.execute('''
+            SELECT DISTINCT ClientAddr_ClientIp
+            FROM data_artifactory
+        ''')
+        all_ips = [row[0] for row in self.cursor.fetchall()]
+
+        # Get the data from the database
         self.cursor.execute(f'''
             SELECT strftime('%s', time) / ? * ?, ClientAddr_ClientIp, COUNT(*)
             FROM data_artifactory
@@ -127,10 +142,18 @@ class ArtifactoryAggregator(BaseAggregator):
             ORDER BY strftime('%s', time) / ?
         ''', (time_modulus, time_modulus, time_modulus, time_modulus))
         data_ip_timeline = self.cursor.fetchall()
-        ip_data = {}
-        for time_period, ip, count in data_ip_timeline:
-            if ip not in ip_data:
-                ip_data[ip] = ([], [])
-            ip_data[ip][0].append(time_period)
-            ip_data[ip][1].append(count)
+
+        # Convert the data to a dictionary for easy access
+        data_dict = {(time_period, ip): count for time_period, ip, count in data_ip_timeline}
+
+        # Initialize the result dictionary
+        ip_data = {ip: ([], []) for ip in all_ips}
+
+        # Fill the result dictionary
+        for time_period in all_time_periods:
+            for ip in all_ips:
+                count = data_dict.get((time_period, ip), 0)
+                ip_data[ip][0].append(time_period)
+                ip_data[ip][1].append(count)
+
         return ip_data

@@ -29,10 +29,10 @@ class ArtifactoryDisplayApp(App):
     """
 
     BINDINGS = [
-        ("l", "label_toggle", "Toggle labels"),
-        ("t", "totals_toggle", "Toggle totals"),
-        ("+", "time_granularity_decrease", "Decrease granularity"),
-        ("-", "time_granularity_increase", "Increase granularity"),
+        ("l", "label_toggle", "Labels"),
+        ("t", "totals_toggle", "Totals"),
+        ("-", "time_granularity_decrease", "Less granular"),
+        ("+", "time_granularity_increase", "More granular"),
     ]
 
     def __init__(self, aggregator: ArtifactoryAggregator):
@@ -40,7 +40,7 @@ class ArtifactoryDisplayApp(App):
         self.aggregator = aggregator
         self.show_labels = True
         self.show_totals = False
-        self.time_granularity_steps = [60, 300, 900, 1800, 3600]
+        self.time_granularity_steps = [3600, 1800, 900, 300, 60]
         self.time_granularity_index = 2
 
     def compose(self) -> ComposeResult:
@@ -52,7 +52,7 @@ class ArtifactoryDisplayApp(App):
                 yield Footer()
             with TabPane("Path Stats", id="path_pane"):
                 yield DataTable(id="path_table")
-            with TabPane("Tag Stags", id="tag_pane"):
+            with TabPane("Tag Stats", id="tag_pane"):
                 yield DataTable(id="tag_table")
 
     def on_mount(self) -> None:
@@ -100,13 +100,13 @@ class ArtifactoryDisplayApp(App):
 
     def refresh_ip_plot(self):
         plot = self.query_one(PlotextPlot)
-        plt = self.query_one(PlotextPlot).plt
+        plt: Plot = self.query_one(PlotextPlot).plt
         plt.clear_data()
         time_granularity = self.time_granularity_steps[self.time_granularity_index]
         if not self.show_totals:
             for ip, (time_periods, counts) in self.aggregator.timeline_ip(time_granularity).items():
                 label = ip if self.show_labels else None
-                plt.scatter(time_periods, counts, label=label, marker="hd")
+                plt.plot(time_periods, counts, marker='braille', label=label)
         else:
             aggregated_counts = {}
             for ip, (time_periods, counts) in self.aggregator.timeline_ip(time_granularity).items():
@@ -118,5 +118,6 @@ class ArtifactoryDisplayApp(App):
             time_periods = list(aggregated_counts.keys())
             counts = list(aggregated_counts.values())
             label = "Total" if self.show_labels else None
-            plt.scatter(time_periods, counts, label=label, marker="hd")
+            plt.plot(time_periods, counts, marker='braille', label=label)
+            plt.grid
         plot.refresh()

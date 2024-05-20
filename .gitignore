@@ -1,5 +1,6 @@
 samples/
 *.sqlite
 *.sqlite3
+*.db
 *.zip
 *.log

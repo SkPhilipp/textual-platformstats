@@ -9,7 +9,7 @@ class BaseAggregatorConfig:
 class BaseAggregator[T: BaseAggregatorConfig]:
     def __init__(self, config: T):
         self.config = config
-        self.conn = sqlite3.connect(':memory:')
+        self.conn = sqlite3.connect('platformstats.db')
         self.cursor = self.conn.cursor()
 
     def run_sql(self, file_path):

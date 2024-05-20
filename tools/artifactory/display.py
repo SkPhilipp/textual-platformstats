@@ -12,22 +12,14 @@ class ArtifactoryDisplayApp(App):
     CSS = """
     TabbedContent {
         height: 100%;
-        width: 100%;
     }
     
+    ContentSwitcher {
+        height: 100%;
+    }
+
     TabPane {
         padding: 0;
-        height: 20;
-    }
-    
-    DataTable {
-        height: 100%;
-        width: 100%;
-    }
-    
-    PlotextPlot {
-        height: 100%;
-        width: 100%;
     }
     """
 
@@ -53,14 +45,13 @@ class ArtifactoryDisplayApp(App):
                 yield DataTable(id="ip_table")
             with TabPane("IP Plot", id="ip_pane_plot"):
                 yield PlotextPlot(id="ip_plot")
-                yield Footer()
             with TabPane("Path Stats", id="path_pane"):
                 yield DataTable(id="path_table")
             with TabPane("Tag Stats", id="tag_pane"):
                 yield DataTable(id="tag_table")
             with TabPane("Tag Plot", id="tag_pane_plot"):
                 yield PlotextPlot(id="tag_plot")
-                yield Footer()
+        yield Footer()
 
     def format_bytes(self, num):
         if num is None:

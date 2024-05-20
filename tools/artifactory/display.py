@@ -100,7 +100,6 @@ class ArtifactoryDisplayApp(App):
 
     def refresh_plot(self, plot, values, interval):
         plt: Plot = self.query_one(PlotextPlot).plt
-        plt.title("Timeline of Requests")
         plt.xlabel("Time")
         plt.ylabel(f"Requests per {interval}s")
         plt.clear_data()

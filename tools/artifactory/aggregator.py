@@ -89,13 +89,48 @@ class ArtifactoryAggregator(BaseAggregator):
         results = []
         for ip in all_ips:
             self.cursor.execute('''
-                SELECT COUNT(*), SUM(DownstreamContentSize), 0, 0, 0, 0, 0, 0
+                SELECT COUNT(*), SUM(DownstreamContentSize)
                 FROM data_artifactory
                 WHERE ClientAddr_ClientIp = ?
             ''', (ip,))
-            row = self.cursor.fetchone()
-            results.append((ip, *row))
-            print((ip, *row))
+            total_requests, total_downloads = self.cursor.fetchone()
+
+            self.cursor.execute('''
+                SELECT MAX(requests), MAX(downloads)
+                FROM (
+                    SELECT COUNT(*) as requests, SUM(DownstreamContentSize) as downloads
+                    FROM data_artifactory
+                    WHERE ClientAddr_ClientIp = ?
+                    GROUP BY strftime('%s', time)
+                )
+            ''', (ip,))
+            peak_req_per_sec, peak_down_per_sec = self.cursor.fetchone()
+
+            self.cursor.execute('''
+                SELECT MAX(requests), MAX(downloads)
+                FROM (
+                    SELECT COUNT(*) as requests, SUM(DownstreamContentSize) as downloads
+                    FROM data_artifactory
+                    WHERE ClientAddr_ClientIp = ?
+                    GROUP BY strftime('%M', time)
+                )
+            ''', (ip,))
+            peak_req_per_min, peak_down_per_min = self.cursor.fetchone()
+
+            self.cursor.execute('''
+                SELECT MAX(requests), MAX(downloads)
+                FROM (
+                    SELECT COUNT(*) as requests, SUM(DownstreamContentSize) as downloads
+                    FROM data_artifactory
+                    WHERE ClientAddr_ClientIp = ?
+                    GROUP BY strftime('%H', time)
+                )
+            ''', (ip,))
+            peak_req_per_hour, peak_down_per_hour = self.cursor.fetchone()
+
+            results.append((ip, total_requests, total_downloads, peak_req_per_sec, peak_req_per_min, peak_req_per_hour, peak_down_per_sec, peak_down_per_min,
+                            peak_down_per_hour))
+
         return results
 
     def summarize_path(self) -> Tuple[list, int]:

@@ -1,17 +1,9 @@
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Footer, TabbedContent, TabPane, DataTable
+from textual.widgets import TabbedContent, TabPane, DataTable
 
 from tools.artifactory.aggregator import ArtifactoryAggregator
 
-
-#         table = Table(title=f"Top {top_n} ClientAddr_ClientIp values (total: {total})")
-#         table.add_column("Count", justify="right")
-#         table.add_column("ClientAddr_ClientIp")
-#         for count_item, counts in rows:
-#             table.add_row(str(counts), count_item)
-#         console = Console()
-#         console.print(table)
 
 class ArtifactoryDisplayApp(App):
     CSS = """
@@ -25,6 +17,7 @@ class ArtifactoryDisplayApp(App):
         height: 20;
     }
     """
+
     def __init__(self, aggregator: ArtifactoryAggregator):
         super().__init__()
         self.aggregator = aggregator

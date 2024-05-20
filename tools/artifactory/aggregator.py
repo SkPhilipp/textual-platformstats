@@ -80,109 +80,84 @@ class ArtifactoryAggregator(BaseAggregator):
                 ))
         self.connection.commit()
 
-    def summarize_ip(self) -> List[Tuple]:
-        self.cursor.execute('''
-            SELECT DISTINCT ClientAddr_ClientIp
+    def summarize(self, column) -> List[Tuple]:
+        self.cursor.execute(f'''
+            SELECT DISTINCT {column}
             FROM data_artifactory
         ''')
-        all_ips = [row[0] for row in self.cursor.fetchall()]
+        all_entries = [row[0] for row in self.cursor.fetchall()]
         results = []
-        for ip in all_ips:
-            self.cursor.execute('''
+        for entry in all_entries:
+            self.cursor.execute(f'''
                 SELECT COUNT(*), SUM(DownstreamContentSize)
                 FROM data_artifactory
-                WHERE ClientAddr_ClientIp = ?
-            ''', (ip,))
+                WHERE {column} = ?
+            ''', (entry,))
             total_requests, total_downloads = self.cursor.fetchone()
-
-            self.cursor.execute('''
+            self.cursor.execute(f'''
                 SELECT MAX(requests), MAX(downloads)
                 FROM (
                     SELECT COUNT(*) as requests, SUM(DownstreamContentSize) as downloads
                     FROM data_artifactory
-                    WHERE ClientAddr_ClientIp = ?
+                    WHERE {column} = ?
                     GROUP BY strftime('%s', time)
                 )
-            ''', (ip,))
+            ''', (entry,))
             peak_req_per_sec, peak_down_per_sec = self.cursor.fetchone()
-
-            self.cursor.execute('''
+            self.cursor.execute(f'''
                 SELECT MAX(requests), MAX(downloads)
                 FROM (
                     SELECT COUNT(*) as requests, SUM(DownstreamContentSize) as downloads
                     FROM data_artifactory
-                    WHERE ClientAddr_ClientIp = ?
+                    WHERE {column} = ?
                     GROUP BY strftime('%M', time)
                 )
-            ''', (ip,))
+            ''', (entry,))
             peak_req_per_min, peak_down_per_min = self.cursor.fetchone()
-
-            self.cursor.execute('''
+            self.cursor.execute(f'''
                 SELECT MAX(requests), MAX(downloads)
                 FROM (
                     SELECT COUNT(*) as requests, SUM(DownstreamContentSize) as downloads
                     FROM data_artifactory
-                    WHERE ClientAddr_ClientIp = ?
+                    WHERE {column} = ?
                     GROUP BY strftime('%H', time)
                 )
-            ''', (ip,))
+            ''', (entry,))
             peak_req_per_hour, peak_down_per_hour = self.cursor.fetchone()
-
-            results.append((ip, total_requests, total_downloads, peak_req_per_sec, peak_req_per_min, peak_req_per_hour, peak_down_per_sec, peak_down_per_min,
+            results.append((entry, total_requests, total_downloads, peak_req_per_sec, peak_req_per_min, peak_req_per_hour, peak_down_per_sec, peak_down_per_min,
                             peak_down_per_hour))
-
         return results
 
-    def summarize_path(self) -> Tuple[list, int]:
-        top_n = 10
-        self.cursor.execute(f'''
-            SELECT RequestPath, COUNT(*)
-            FROM data_artifactory
-            GROUP BY RequestPath
-            ORDER BY COUNT(*) DESC
-            LIMIT ?
-        ''', (top_n,))
-        rows = self.cursor.fetchall()
-        total = sum(count for _, count in rows)
-        return rows, total
+    def summarize_ip(self) -> List[Tuple]:
+        return self.summarize('ClientAddr_ClientIp')
 
-    def summarize_tag(self) -> Tuple[list, int]:
-        top_n = 10
-        self.cursor.execute(f'''
-            SELECT _tag, COUNT(*)
-            FROM data_artifactory
-            GROUP BY _tag
-            ORDER BY COUNT(*) DESC
-            LIMIT ?
-        ''', (top_n,))
-        rows = self.cursor.fetchall()
-        total = sum(count for _, count in rows)
-        return rows, total
+    def summarize_path(self) -> List[Tuple]:
+        return self.summarize('RequestPath')
+
+    def summarize_tag(self) -> List[Tuple]:
+        return self.summarize('_tag')
 
     def timeline_ip(self, interval: int) -> dict:
-        # Get all unique time periods
         self.cursor.execute(f'''
             SELECT DISTINCT strftime('%s', time) / ? * ?
             FROM data_artifactory
         ''', (interval, interval))
         all_time_periods = [row[0] for row in self.cursor.fetchall()]
 
-        # Get all unique IPs
         self.cursor.execute('''
             SELECT DISTINCT ClientAddr_ClientIp
             FROM data_artifactory
         ''')
         all_ips = [row[0] for row in self.cursor.fetchall()]
 
-        # Get the data from the database
         self.cursor.execute(f'''
             SELECT strftime('%s', time) / ? * ?, ClientAddr_ClientIp, COUNT(*)
             FROM data_artifactory
             GROUP BY strftime('%s', time) / ?, ClientAddr_ClientIp
             ORDER BY strftime('%s', time) / ?
         ''', (interval, interval, interval, interval))
-        data_ip_timeline = self.cursor.fetchall()
-        data_dict = {(time_period, ip): count for time_period, ip, count in data_ip_timeline}
+        data_timeline = self.cursor.fetchall()
+        data_dict = {(time_period, ip): count for time_period, ip, count in data_timeline}
         ip_data = {ip: ([], []) for ip in all_ips}
         for time_period in all_time_periods:
             for ip in all_ips:
@@ -191,3 +166,33 @@ class ArtifactoryAggregator(BaseAggregator):
                 ip_data[ip][1].append(count)
 
         return ip_data
+
+    def timeline_tag(self, interval: int) -> dict:
+        self.cursor.execute(f'''
+            SELECT DISTINCT strftime('%s', time) / ? * ?
+            FROM data_artifactory
+        ''', (interval, interval))
+        all_time_periods = [row[0] for row in self.cursor.fetchall()]
+
+        self.cursor.execute('''
+            SELECT DISTINCT _tag
+            FROM data_artifactory
+        ''')
+        all_tags = [row[0] for row in self.cursor.fetchall()]
+
+        self.cursor.execute(f'''
+            SELECT strftime('%s', time) / ? * ?, _tag, COUNT(*)
+            FROM data_artifactory
+            GROUP BY strftime('%s', time) / ?, _tag
+            ORDER BY strftime('%s', time) / ?
+        ''', (interval, interval, interval, interval))
+        data_timeline = self.cursor.fetchall()
+        data_dict = {(time_period, ip): count for time_period, ip, count in data_timeline}
+        tag_data = {tag: ([], []) for tag in all_tags}
+        for time_period in all_time_periods:
+            for ip in all_tags:
+                count = data_dict.get((time_period, ip), 0)
+                tag_data[ip][0].append(time_period)
+                tag_data[ip][1].append(count)
+
+        return tag_data

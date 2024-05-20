@@ -118,3 +118,19 @@ class ArtifactoryAggregator(BaseAggregator):
         rows = self.cursor.fetchall()
         total = sum(count for _, count in rows)
         return rows, total
+
+    def timeline_ip(self, time_modulus: int) -> dict:
+        self.cursor.execute(f'''
+            SELECT strftime('%s', time) / ? * ?, ClientAddr_ClientIp, COUNT(*)
+            FROM data_artifactory
+            GROUP BY strftime('%s', time) / ?, ClientAddr_ClientIp
+            ORDER BY strftime('%s', time) / ?
+        ''', (time_modulus, time_modulus, time_modulus, time_modulus))
+        data_ip_timeline = self.cursor.fetchall()
+        ip_data = {}
+        for time_period, ip, count in data_ip_timeline:
+            if ip not in ip_data:
+                ip_data[ip] = ([], [])
+            ip_data[ip][0].append(time_period)
+            ip_data[ip][1].append(count)
+        return ip_data

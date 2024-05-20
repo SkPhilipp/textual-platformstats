@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from textual.app import App, ComposeResult
 from textual.widgets import TabbedContent, TabPane, DataTable, Footer
 from textual_plotext import PlotextPlot, Plot
@@ -33,6 +35,7 @@ class ArtifactoryDisplayApp(App):
         ("t", "totals_toggle", "Totals"),
         ("-", "time_granularity_decrease", "Less granular"),
         ("+", "time_granularity_increase", "More granular"),
+        ("=", "time_granularity_increase"),
     ]
 
     def __init__(self, aggregator: ArtifactoryAggregator):
@@ -63,9 +66,6 @@ class ArtifactoryDisplayApp(App):
             table_ip.add_row(str(counts), count_item)
 
         plt = self.query_one(PlotextPlot).plt
-        plt.title("Timeline of Requests")
-        plt.xlabel("Time")
-        plt.ylabel("Requests")
         self.refresh_ip_plot()
 
         data_path, total_path = self.aggregator.summarize_path()
@@ -98,26 +98,39 @@ class ArtifactoryDisplayApp(App):
             self.time_granularity_index += 1
             self.refresh_ip_plot()
 
-    def refresh_ip_plot(self):
-        plot = self.query_one(PlotextPlot)
+    def refresh_plot(self, plot, values, interval):
         plt: Plot = self.query_one(PlotextPlot).plt
+        plt.title("Timeline of Requests")
+        plt.xlabel("Time")
+        plt.ylabel(f"Requests per {interval}s")
         plt.clear_data()
-        time_granularity = self.time_granularity_steps[self.time_granularity_index]
+        plt.date_form("d/m/Y H:M:S")
         if not self.show_totals:
-            for ip, (time_periods, counts) in self.aggregator.timeline_ip(time_granularity).items():
-                label = ip if self.show_labels else None
+            for key, (time_periods, counts) in values:
+                label = key if self.show_labels else None
+                time_periods = [datetime.fromtimestamp(tp) for tp in time_periods]
+                time_periods = plt.datetimes_to_string(time_periods)
                 plt.plot(time_periods, counts, marker='braille', label=label)
         else:
             aggregated_counts = {}
-            for ip, (time_periods, counts) in self.aggregator.timeline_ip(time_granularity).items():
+            for key, (time_periods, counts) in values:
                 for time_period, count in zip(time_periods, counts):
                     if time_period in aggregated_counts:
                         aggregated_counts[time_period] += count
                     else:
                         aggregated_counts[time_period] = count
             time_periods = list(aggregated_counts.keys())
+            time_periods = [datetime.fromtimestamp(tp) for tp in time_periods]
+            time_periods = plt.datetimes_to_string(time_periods)
+
             counts = list(aggregated_counts.values())
             label = "Total" if self.show_labels else None
             plt.plot(time_periods, counts, marker='braille', label=label)
-            plt.grid
+        plt.grid(0, 1)
         plot.refresh()
+
+    def refresh_ip_plot(self):
+        interval = self.time_granularity_steps[self.time_granularity_index]
+        plot = self.query_one(PlotextPlot)
+        values = self.aggregator.timeline_ip(interval).items()
+        self.refresh_plot(plot, values, interval)

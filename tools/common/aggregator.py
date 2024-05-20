@@ -9,10 +9,11 @@ class BaseAggregatorConfig:
 class BaseAggregator[T: BaseAggregatorConfig]:
     def __init__(self, config: T):
         self.config = config
-        self.conn = sqlite3.connect('platformstats.db')
-        self.cursor = self.conn.cursor()
+        self.connection = sqlite3.connect('platformstats.db')
+        self.cursor = self.connection.cursor()
 
     def run_sql(self, file_path):
         with open(file_path, 'r') as sql_file:
             sql_script = sql_file.read()
         self.cursor.executescript(sql_script)
+        self.connection.commit()

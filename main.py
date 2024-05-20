@@ -2,6 +2,7 @@
 import argparse
 
 from tools.artifactory.aggregator import ArtifactoryAggregator
+from tools.artifactory.display import ArtifactoryDisplayApp
 from tools.artifactory.unpack import unpack
 from tools.common.logs import log
 
@@ -18,7 +19,8 @@ def main():
         aggregator = ArtifactoryAggregator()
         for log_file in log_files:
             aggregator.parse_router_request_log(log_file)
-        aggregator.summarize()
+        app = ArtifactoryDisplayApp(aggregator)
+        app.run()
         return
 
     log.error(f'Unknown application: {args.application}')

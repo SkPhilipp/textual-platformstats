@@ -1,5 +1,5 @@
 import json
-from typing import Tuple
+from typing import Tuple, List
 
 from tools.common.aggregator import BaseAggregator, BaseAggregatorConfig
 from tools.common.logs import log
@@ -80,18 +80,23 @@ class ArtifactoryAggregator(BaseAggregator):
                 ))
         self.connection.commit()
 
-    def summarize_ip(self) -> Tuple[list, int]:
-        top_n = 10
-        self.cursor.execute(f'''
-            SELECT ClientAddr_ClientIp, COUNT(*)
+    def summarize_ip(self) -> List[Tuple]:
+        self.cursor.execute('''
+            SELECT DISTINCT ClientAddr_ClientIp
             FROM data_artifactory
-            GROUP BY ClientAddr_ClientIp
-            ORDER BY COUNT(*) DESC
-            LIMIT ?
-        ''', (top_n,))
-        rows = self.cursor.fetchall()
-        total = sum(count for _, count in rows)
-        return rows, total
+        ''')
+        all_ips = [row[0] for row in self.cursor.fetchall()]
+        results = []
+        for ip in all_ips:
+            self.cursor.execute('''
+                SELECT COUNT(*), SUM(DownstreamContentSize), 0, 0, 0, 0, 0, 0
+                FROM data_artifactory
+                WHERE ClientAddr_ClientIp = ?
+            ''', (ip,))
+            row = self.cursor.fetchone()
+            results.append((ip, *row))
+            print((ip, *row))
+        return results
 
     def summarize_path(self) -> Tuple[list, int]:
         top_n = 10
@@ -149,4 +154,5 @@ class ArtifactoryAggregator(BaseAggregator):
                 count = data_dict.get((time_period, ip), 0)
                 ip_data[ip][0].append(time_period)
                 ip_data[ip][1].append(count)
+
         return ip_data

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.widgets import TabbedContent, TabPane, DataTable, Footer
 from textual_plotext import PlotextPlot, Plot
@@ -58,27 +59,85 @@ class ArtifactoryDisplayApp(App):
             with TabPane("Tag Stats", id="tag_pane"):
                 yield DataTable(id="tag_table")
 
+    def make_summary_table(self, name, table: DataTable, data: any):
+        table.add_columns(name, "Total Reqs", "Total Down",
+                          "Peak Req/1s", "Peak Req/1m", "Peak Req/1h",
+                          "Peak Down Req/1s", "Peak Down Req/1m", "Peak Down Req/1h")
+        total_requests = sum(counts for _, counts in data)
+        total_downloads = sum(counts for _, counts in data)
+        table.add_row("Total", str(total_requests), str(total_downloads),
+                      "", "", "",
+                      "", "", "")
+        for count_item, counts in data:
+            table.add_row(count_item, str(counts), str(counts),
+                          str(counts), str(counts), str(counts),
+                          str(counts), str(counts), str(counts))
+
+    def format_bytes(self, num):
+        suffix = ""
+        color = "grey15"
+        if num > 1024:
+            num /= 1024
+            suffix = "kB"
+            color = "grey15"
+        if num > 1024:
+            num /= 1024
+            suffix = "MB"
+            color = "grey35"
+        if num > 1024:
+            num /= 1024
+            suffix = "GB"
+            color = "grey62"
+            if num > 10:
+                color = "white"
+        if num > 1024:
+            num /= 1024
+            suffix = "TB"
+            color = "red"
+        return Text(f"{num:.2f}{suffix}", justify="right", style=color)
+
+    def format_num(self, num):
+        suffix = ""
+        color = "grey35"
+        if num > 1000:
+            num /= 1000
+            suffix = "k"
+            color = "grey82"
+        if num > 1000:
+            num /= 1000
+            suffix = "M"
+            color = "white"
+        if num > 1000:
+            num /= 1000
+            suffix = "B"
+            color = "red"
+        return Text(f"{num:.2f}{suffix}", justify="right", style=color)
+
+    def make_summary_table_ip(self, name, table: DataTable, data: any):
+        table.add_columns(name, "Total Reqs", "Total Down",
+                          "Peak Req/1s", "Peak Req/1m", "Peak Req/1h",
+                          "Peak Down/1s", "Peak Down/1m", "Peak Down/1h")
+        total_requests = sum(count for _, count, _, _, _, _, _, _, _ in data)
+        total_downloads = sum(download for _, _, download, _, _, _, _, _, _ in data)
+        table.add_row("Total", self.format_num(total_requests), self.format_bytes(total_downloads),
+                      "", "", "",
+                      "", "", "")
+        for count_item, sum_reqs, sum_download, peak_1s, peak_1m, peak_1h, peak_down_1s, peak_down_1m, peak_down_1h in data:
+            table.add_row(count_item, self.format_num(sum_reqs), self.format_bytes(sum_download),
+                          self.format_num(peak_1s), self.format_num(peak_1m), self.format_num(peak_1h),
+                          self.format_bytes(peak_down_1s), self.format_bytes(peak_down_1m), self.format_bytes(peak_down_1h))
+
     def on_mount(self) -> None:
-        data_ip, total_ip = self.aggregator.summarize_ip()
+        data_ip = self.aggregator.summarize_ip()
         table_ip = self.query_one("#ip_table", DataTable)
-        table_ip.add_columns("Count", "ClientAddr_ClientIp")
-        for count_item, counts in data_ip:
-            table_ip.add_row(str(counts), count_item)
-
-        plt = self.query_one(PlotextPlot).plt
+        self.make_summary_table_ip("IP", table_ip, data_ip)
         self.refresh_ip_plot()
-
-        data_path, total_path = self.aggregator.summarize_path()
         table_path = self.query_one("#path_table", DataTable)
-        table_path.add_columns("Count", "RequestPath")
-        for count_item, counts in data_path:
-            table_path.add_row(str(counts), count_item)
-
+        data_path, total_path = self.aggregator.summarize_path()
+        self.make_summary_table("Path", table_path, data_path)
         data_tag, total_tag = self.aggregator.summarize_tag()
         table_tag = self.query_one("#tag_table", DataTable)
-        table_tag.add_columns("Count", "Tag")
-        for count_item, counts in data_tag:
-            table_tag.add_row(str(counts), count_item)
+        self.make_summary_table("Tag", table_tag, data_tag)
 
     def action_label_toggle(self):
         self.show_labels = not self.show_labels

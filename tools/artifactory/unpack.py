@@ -1,3 +1,4 @@
+import gzip
 import os
 import zipfile
 
@@ -25,12 +26,21 @@ def unpack(support_bundle_path):
                 with zipfile.ZipFile(file_path, 'r') as zip_ref:
                     zip_ref.extractall(root)
 
+    log.info(f'Unpacking nested gz files in {dir_name}')
+    for root, dirs, files in os.walk(dir_name):
+        for file in files:
+            if file.endswith('.gz'):
+                file_path = os.path.join(root, file)
+                with gzip.open(file_path, 'rb') as f_in:
+                    with open(file_path[:-3], 'wb') as f_out:
+                        f_out.write(f_in.read())
+
     log.info('Locating relevant log files')
-    match = ['router-request.log']
     log_files = []
     for root, dirs, files in os.walk(dir_name):
         for file in files:
-            if any(m in file for m in match):
+            # starts with router-request and ends with .log
+            if file.startswith('router-request') and file.endswith('.log'):
                 log_files.append(os.path.join(root, file))
                 log.info(f'Found "{os.path.relpath(os.path.join(root, file), start=dir_name)}"')
 

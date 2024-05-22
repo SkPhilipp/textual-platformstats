@@ -152,7 +152,7 @@ class ArtifactoryDisplayApp(App):
         plt.xlabel("Time")
         plt.ylabel(f"Requests per {interval}s")
         plt.clear_data()
-        plt.date_form("d/m/Y H:M:S")
+        plt.date_form("H:M:S")
         if not self.show_totals:
             for key, (time_periods, counts) in values:
                 label = key if self.show_labels else None
